@@ -105,9 +105,9 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/product_launched_with_k.mk)
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/thermal-engine-8974.conf:$(TARGET_COPY_OUT_VENDOR)/etc/thermal-engine-8974.conf
 
-# Vibrator
+# Vibrator (AIDL wrapper around the libhardware vibrator.default module)
 PRODUCT_PACKAGES += \
-    android.hardware.vibrator@1.0-impl
+    android.hardware.vibrator-service.legacy
 
 # Wifi
 PRODUCT_PACKAGES += \
