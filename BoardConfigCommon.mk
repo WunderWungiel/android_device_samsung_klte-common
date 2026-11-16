@@ -53,6 +53,9 @@ BOARD_RAMDISK_USE_XZ := true
 TARGET_KERNEL_CLANG_COMPILE := false
 TARGET_KERNEL_SOURCE := kernel/samsung/msm8974
 
+# Radio: Samsung libril/rild (libril_samsung, rild_samsung) from msm8974-common
+ENABLE_VENDOR_RIL_SERVICE := true
+
 # Legacy BLOB Support
 TARGET_LD_SHIM_LIBS += \
     /system/vendor/lib/hw/camera.vendor.msm8974.so|libshim_camera.so \
@@ -78,9 +81,6 @@ TARGET_USERIMAGES_USE_F2FS := true
 
 # Properties
 TARGET_SYSTEM_PROP += $(COMMON_PATH)/system.prop
-
-# Radio
-BOARD_PROVIDES_LIBRIL := true
 
 # Recovery
 BOARD_CUSTOM_RECOVERY_KEYMAPPING := ../../$(COMMON_PATH)/recovery/recovery_keys.c

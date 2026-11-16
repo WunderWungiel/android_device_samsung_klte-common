@@ -75,7 +75,9 @@ PRODUCT_COPY_FILES += \
 
 # Radio
 PRODUCT_PACKAGES += \
-    libsecnativefeature
+    libril_samsung \
+    libsecnativefeature \
+    rild_samsung
 
 # Ramdisk
 PRODUCT_PACKAGES += \
