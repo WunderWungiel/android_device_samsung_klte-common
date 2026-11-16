@@ -52,6 +52,7 @@ BOARD_CUSTOM_BOOTIMG_MK := hardware/samsung/mkbootimg.mk
 BOARD_RAMDISK_USE_XZ := true
 TARGET_KERNEL_CLANG_COMPILE := false
 TARGET_KERNEL_SOURCE := kernel/samsung/msm8974
+TARGET_KERNEL_VERSION := 3.4
 
 # Radio: Samsung libril/rild (libril_samsung, rild_samsung) from msm8974-common
 ENABLE_VENDOR_RIL_SERVICE := true
