@@ -1,0 +1,12 @@
+//
+// Copyright (C) 2026 The LineageOS Project
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// Picked up by hardware/broadcom/libbt through
+// soong_config brcm_libbt custom_bt_config (see BoardConfigCommon.mk).
+filegroup {
+    name: "klte_libbt_vnd_config",
+    srcs: ["vnd_klte.txt"],
+}

@@ -27,9 +27,9 @@ USE_CUSTOM_AUDIO_POLICY := 1
 
 # Bluetooth
 BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := $(COMMON_PATH)/bluetooth
-BOARD_CUSTOM_BT_CONFIG := $(COMMON_PATH)/bluetooth/vnd_klte.txt
-BOARD_HAVE_BLUETOOTH_BCM := true
-BOARD_HAVE_SAMSUNG_BLUETOOTH := true
+# hardware/broadcom/libbt (libbt-vendor)
+$(call soong_config_set,brcm_libbt,bdroid_buildcfg_include_dir,$(COMMON_PATH)/bluetooth)
+$(call soong_config_set,brcm_libbt,custom_bt_config,:klte_libbt_vnd_config)
 
 # Bootloader
 TARGET_BOOTLOADER_BOARD_NAME := MSM8974

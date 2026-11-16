@@ -1,0 +1,20 @@
+//
+// Copyright (C) 2013-2024 The CyanogenMod Project
+//                         The LineageOS Project
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// Samsung Wi-Fi MAC/NVRAM loader. Imported from hardware/samsung
+// lineage-21 (4dc772dd), where it was an Android.mk module; LineageOS 22
+// dropped it.
+cc_binary {
+    name: "macloader",
+    vendor: true,
+    srcs: ["macloader.c"],
+    header_libs: ["klte_samsung_headers"],
+    shared_libs: [
+        "liblog",
+        "libutils",
+    ],
+}
