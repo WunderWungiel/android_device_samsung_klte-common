@@ -66,7 +66,8 @@ TARGET_PROCESS_SDK_VERSION_OVERRIDE += \
     /system/vendor/bin/mm-qcamera-daemon=22 \
     /system/vendor/bin/hw/rild=27
 
-# Partitions
+# Partitions (non-A/B; Android 15 defaults AB_OTA_UPDATER to true)
+AB_OTA_UPDATER := false
 BOARD_BOOTIMAGE_PARTITION_SIZE := 13631488
 BOARD_CACHEIMAGE_PARTITION_SIZE := 157286400
 BOARD_RECOVERYIMAGE_PARTITION_SIZE := 15728640
