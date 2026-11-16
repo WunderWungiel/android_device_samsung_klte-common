@@ -38,6 +38,9 @@ function blob_fixup() {
                     s|/system/lib|/vendor/lib|g;
                     s|/system/cameradata|/vendor/cameradata|g' "${2}"
             ;;
+        vendor/lib/libril-qcril-hook-oem.so)
+            "${PATCHELF}" --replace-needed libril.so libril_samsung.so "${2}"
+            ;;
     esac
 }
 
