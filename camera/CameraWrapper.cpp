@@ -22,8 +22,7 @@
 
 #define LOG_TAG "CameraWrapper"
 
-#include <camera/CameraParameters.h>
-#include <camera/Camera.h>
+#include <CameraParameters.h>
 #include <cutils/log.h>
 #include <hardware/camera.h>
 #include <hardware/hardware.h>
@@ -45,6 +44,7 @@ static const char KEY_QC_VIDEO_HDR_VALUES[] = "video-hdr-values";
 #define FRONT_CAMERA_ID 1
 
 using namespace android;
+using android::hardware::camera::common::helper::CameraParameters;
 
 static Mutex gCameraWrapperLock;
 static camera_module_t *gVendorModule = 0;
@@ -179,7 +179,7 @@ static char *camera_fixup_getparams(int __attribute__((unused)) id,
     params.dump();
 
     String8 strParams = params.flatten();
-    char *ret = strdup(strParams.string());
+    char *ret = strdup(strParams.c_str());
 
     return ret;
 }
@@ -234,7 +234,7 @@ static char *camera_fixup_setparams(int id, const char *settings)
     String8 strParams = params.flatten();
     if (fixed_set_params[id])
         free(fixed_set_params[id]);
-    fixed_set_params[id] = strdup(strParams.string());
+    fixed_set_params[id] = strdup(strParams.c_str());
     char *ret = fixed_set_params[id];
 
     return ret;
@@ -395,7 +395,7 @@ static int camera_start_recording(struct camera_device *device)
     if (is_4k_video(parameters)) {
         ALOGV("%s : UHD detected, switching preview-format to nv12-venus", __FUNCTION__);
         parameters.setPreviewFormat(PIXEL_FORMAT_NV12_VENUS);
-        camera_set_parameters(device, strdup(parameters.flatten().string()));
+        camera_set_parameters(device, strdup(parameters.flatten().c_str()));
     }
 
     return VENDOR_CALL(device, start_recording);
