@@ -22,6 +22,17 @@
 
 #define LOG_TAG "CameraWrapper"
 
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#include <condition_variable>
+#include <deque>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <utility>
+
 #include <CameraParameters.h>
 #include <cutils/log.h>
 #include <hardware/camera.h>
@@ -61,15 +72,23 @@ static int camera_device_open(const hw_module_t *module, const char *name,
         hw_device_t **device);
 static int camera_get_number_of_cameras(void);
 static int camera_get_camera_info(int camera_id, struct camera_info *info);
+static int camera_set_callbacks(const camera_module_callbacks_t *callbacks);
+static int camera_set_torch_mode(const char *camera_id, bool enabled);
 
 static struct hw_module_methods_t camera_module_methods = {
     .open = camera_device_open,
 };
 
+/*
+ * Module API 2.4 (the devices stay HALv1) so that the provider offers
+ * set_torch_mode: Android 15 has no HALv1 flash control in cameraserver.
+ * The wrapper then owns the torch contract of a 2.4 module: torch off and
+ * NOT_AVAILABLE while a camera is open, -EBUSY for torch requests meanwhile.
+ */
 camera_module_t HAL_MODULE_INFO_SYM = {
     .common = {
          .tag = HARDWARE_MODULE_TAG,
-         .module_api_version = CAMERA_MODULE_API_VERSION_1_0,
+         .module_api_version = CAMERA_MODULE_API_VERSION_2_4,
          .hal_api_version = HARDWARE_HAL_API_VERSION,
          .id = CAMERA_HARDWARE_MODULE_ID,
          .name = "MSM8974 Camera Wrapper",
@@ -80,13 +99,128 @@ camera_module_t HAL_MODULE_INFO_SYM = {
     },
     .get_number_of_cameras = camera_get_number_of_cameras,
     .get_camera_info = camera_get_camera_info,
-    .set_callbacks = NULL,
+    .set_callbacks = camera_set_callbacks,
     .get_vendor_tag_ops = NULL,
     .open_legacy = NULL,
-    .set_torch_mode = NULL,
+    .set_torch_mode = camera_set_torch_mode,
     .init = NULL,
     .reserved = {0},
 };
+
+/*******************************************************************
+ * Torch (rear LED through the max77804k torch-sec1 class device)
+ *******************************************************************/
+
+#define TORCH_CAMERA_ID "0"
+#define TORCH_PATH "/sys/class/camera/flash/rear_flash"
+/* Torch current code 0..15 (MAX77804K_TORCH_IOUT); 6 = board-8974.c default */
+#define TORCH_ON_LEVEL "6"
+
+static std::mutex gTorchLock;
+static const camera_module_callbacks_t *gModuleCallbacks = NULL;
+static bool gTorchOn = false;
+static int gOpenCameras = 0;
+
+/*
+ * Torch status goes to the provider from one worker thread, in order: the
+ * provider forwards it under its own callback lock straight into
+ * cameraserver, which may be inside a call into this module (open while
+ * enumerating, setTorchMode).
+ */
+static std::mutex gStatusLock;
+static std::condition_variable gStatusCond;
+static std::deque<int> gStatusQueue;
+static bool gStatusThreadStarted = false;
+
+static void torch_status_thread()
+{
+    for (;;) {
+        int status;
+        const camera_module_callbacks_t *callbacks;
+        {
+            std::unique_lock<std::mutex> lock(gStatusLock);
+            gStatusCond.wait(lock, [] { return !gStatusQueue.empty(); });
+            status = gStatusQueue.front();
+            gStatusQueue.pop_front();
+            callbacks = gModuleCallbacks;
+        }
+        if (callbacks && callbacks->torch_mode_status_change)
+            callbacks->torch_mode_status_change(callbacks, TORCH_CAMERA_ID, status);
+    }
+}
+
+static void torch_notify(int status)
+{
+    std::lock_guard<std::mutex> lock(gStatusLock);
+    if (!gStatusThreadStarted) {
+        std::thread(torch_status_thread).detach();
+        gStatusThreadStarted = true;
+    }
+    gStatusQueue.push_back(status);
+    gStatusCond.notify_one();
+}
+
+static int torch_write(bool on)
+{
+    int fd = open(TORCH_PATH, O_WRONLY | O_CLOEXEC);
+    if (fd < 0) {
+        int err = errno;
+        ALOGE("%s: open %s: %s", __FUNCTION__, TORCH_PATH, strerror(err));
+        return -err;
+    }
+    const char *value = on ? TORCH_ON_LEVEL : "0";
+    ssize_t len = strlen(value);
+    int ret = write(fd, value, len) == len ? 0 : -errno;
+    if (ret)
+        ALOGE("%s: write %s to %s: %s", __FUNCTION__, value, TORCH_PATH, strerror(-ret));
+    close(fd);
+    return ret;
+}
+
+static int camera_set_callbacks(const camera_module_callbacks_t *callbacks)
+{
+    std::lock_guard<std::mutex> lock(gStatusLock);
+    gModuleCallbacks = callbacks;
+    return 0;
+}
+
+static int camera_set_torch_mode(const char *camera_id, bool enabled)
+{
+    if (!camera_id || strcmp(camera_id, TORCH_CAMERA_ID))
+        return -ENOSYS;
+
+    std::lock_guard<std::mutex> lock(gTorchLock);
+    if (gOpenCameras > 0)
+        return -EBUSY;
+
+    int ret = torch_write(enabled);
+    if (ret)
+        return ret;
+
+    gTorchOn = enabled;
+    torch_notify(enabled ? TORCH_MODE_STATUS_AVAILABLE_ON : TORCH_MODE_STATUS_AVAILABLE_OFF);
+    return 0;
+}
+
+/* A camera is about to open: the HAL owns the flash LED until it closes. */
+static void torch_camera_opening()
+{
+    std::lock_guard<std::mutex> lock(gTorchLock);
+    if (gOpenCameras++ > 0)
+        return;
+    if (gTorchOn) {
+        torch_write(false);
+        gTorchOn = false;
+    }
+    torch_notify(TORCH_MODE_STATUS_NOT_AVAILABLE);
+}
+
+static void torch_camera_closed()
+{
+    std::lock_guard<std::mutex> lock(gTorchLock);
+    if (gOpenCameras > 0 && --gOpenCameras == 0)
+        torch_notify(TORCH_MODE_STATUS_AVAILABLE_OFF);
+}
 
 typedef struct wrapper_camera_device {
     camera_device_t base;
@@ -579,6 +713,7 @@ static int camera_device_close(hw_device_t *device)
     if (wrapper_dev->base.ops)
         free(wrapper_dev->base.ops);
     free(wrapper_dev);
+    torch_camera_closed();
 
 done:
 #ifdef HEAPTRACKER
@@ -604,6 +739,8 @@ static int camera_device_open(const hw_module_t *module, const char *name,
     int rv = 0;
     int num_cameras = 0;
     int camera_id;
+    bool torch_released = false;
+    bool vendor_opened = false;
     wrapper_camera_device_t *camera_device = NULL;
     camera_device_ops_t *camera_ops = NULL;
 
@@ -644,6 +781,9 @@ static int camera_device_open(const hw_module_t *module, const char *name,
         memset(camera_device, 0, sizeof(*camera_device));
         camera_device->id = camera_id;
 
+        torch_camera_opening();
+        torch_released = true;
+
         rv = gVendorModule->common.methods->open(
                 (const hw_module_t*)gVendorModule, name,
                 (hw_device_t**)&(camera_device->vendor));
@@ -651,6 +791,7 @@ static int camera_device_open(const hw_module_t *module, const char *name,
             ALOGE("Vendor camera open fail");
             goto fail;
         }
+        vendor_opened = true;
         ALOGV("%s: Got vendor camera device 0x%08X",
                 __FUNCTION__, (uintptr_t)(camera_device->vendor));
 
@@ -700,6 +841,9 @@ static int camera_device_open(const hw_module_t *module, const char *name,
 
 fail:
     if (camera_device) {
+        if (vendor_opened)
+            camera_device->vendor->common.close(
+                    (hw_device_t*)camera_device->vendor);
         free(camera_device);
         camera_device = NULL;
     }
@@ -707,6 +851,8 @@ fail:
         free(camera_ops);
         camera_ops = NULL;
     }
+    if (torch_released)
+        torch_camera_closed();
     *device = NULL;
     return rv;
 }
@@ -724,5 +870,19 @@ static int camera_get_camera_info(int camera_id, struct camera_info *info)
     ALOGV("%s", __FUNCTION__);
     if (check_vendor_module())
         return 0;
-    return gVendorModule->get_camera_info(camera_id, info);
+    if (!info)
+        return -EINVAL;
+
+    /* The vendor module is API 1.0: it fills facing and orientation only. */
+    memset(info, 0, sizeof(*info));
+    int rv = gVendorModule->get_camera_info(camera_id, info);
+
+    /* Fields that a 2.x module must provide */
+    info->device_version = CAMERA_DEVICE_API_VERSION_1_0;
+    info->static_camera_characteristics = NULL;
+    /* One ISP pipeline: each camera takes the whole budget, no explicit conflicts. */
+    info->resource_cost = 100;
+    info->conflicting_devices = NULL;
+    info->conflicting_devices_length = 0;
+    return rv;
 }

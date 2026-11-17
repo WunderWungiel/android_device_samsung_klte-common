@@ -546,7 +546,8 @@ on boot
     chown system system /sys/class/camera/rear/rear_calcheck
     chown system system /sys/class/camera/rear/rear_fwcheck
     chown system system /sys/class/camera/rear/isp_core
-    chown system radio /sys/class/camera/flash/rear_flash
+    # Torch: written by the camera HAL wrapper in cameraserver (group camera)
+    chown system camera /sys/class/camera/flash/rear_flash
     chown system system /sys/class/camera/front/front_camfw
     chown system system /sys/class/camera/front/front_camtype
 
