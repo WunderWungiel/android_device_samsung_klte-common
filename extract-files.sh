@@ -44,6 +44,8 @@ function blob_fixup() {
         # bionic no longer has LD_SHIM_LIBS: link the shims in directly
         vendor/lib/hw/camera.vendor.msm8974.so)
             "${PATCHELF_0_17_2}" --add-needed libshim_camera.so "${2}"
+            # target SDK 22: libmmjpeg.so (dlopened for JPEG encoding) has text relocations
+            "${PATCHELF_0_17_2}" --add-needed libshim_sdk22.so "${2}"
             ;;
         vendor/lib/libperipheral_client.so)
             "${PATCHELF_0_17_2}" --add-needed libshim_binder.so "${2}"
