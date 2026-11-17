@@ -61,10 +61,8 @@ ENABLE_VENDOR_RIL_SERVICE := true
 
 # Legacy BLOB Support
 # (shims: DT_NEEDED added by blob_fixup in extract-files.sh, bionic has no LD_SHIM_LIBS)
-TARGET_PROCESS_SDK_VERSION_OVERRIDE += \
-    /system/bin/mediaserver=22 \
-    /system/vendor/bin/mm-qcamera-daemon=22 \
-    /system/vendor/bin/hw/rild=27
+# TARGET_PROCESS_SDK_VERSION_OVERRIDE is gone from bionic. A blob that needs an
+# old target SDK gets a libshim_sdkNN as DT_NEEDED instead (see libshim_sdk22).
 
 # Partitions (non-A/B; Android 15 defaults AB_OTA_UPDATER to true)
 AB_OTA_UPDATER := false
