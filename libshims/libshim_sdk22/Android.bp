@@ -1,0 +1,16 @@
+//
+// Copyright (C) 2026 The LineageOS Project
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// Target SDK 22 for blobs that need pre-M linker behaviour (text relocations).
+cc_library_shared {
+    name: "libshim_sdk22",
+    vendor: true,
+    srcs: ["sdk22.c"],
+    shared_libs: [
+        "libdl",
+        "liblog",
+    ],
+}

@@ -48,6 +48,10 @@ function blob_fixup() {
         vendor/lib/libperipheral_client.so)
             "${PATCHELF_0_17_2}" --add-needed libshim_binder.so "${2}"
             ;;
+        # target SDK 22: libmmcamera_faceproc.so has text relocations
+        vendor/bin/mm-qcamera-daemon)
+            "${PATCHELF_0_17_2}" --add-needed libshim_sdk22.so "${2}"
+            ;;
     esac
 }
 

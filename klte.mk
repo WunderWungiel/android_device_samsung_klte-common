@@ -39,7 +39,8 @@ PRODUCT_COPY_FILES += \
 
 # Camera
 PRODUCT_PACKAGES += \
-    libshim_camera
+    libshim_camera \
+    libshim_sdk22
 
 # Device uses high-density artwork where available
 PRODUCT_AAPT_CONFIG := normal
