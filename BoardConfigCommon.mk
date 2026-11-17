@@ -60,9 +60,7 @@ TARGET_KERNEL_VERSION := 3.4
 ENABLE_VENDOR_RIL_SERVICE := true
 
 # Legacy BLOB Support
-TARGET_LD_SHIM_LIBS += \
-    /system/vendor/lib/hw/camera.vendor.msm8974.so|libshim_camera.so \
-    /system/vendor/lib/libperipheral_client.so|libshim_binder.so
+# (shims: DT_NEEDED added by blob_fixup in extract-files.sh, bionic has no LD_SHIM_LIBS)
 TARGET_PROCESS_SDK_VERSION_OVERRIDE += \
     /system/bin/mediaserver=22 \
     /system/vendor/bin/mm-qcamera-daemon=22 \
