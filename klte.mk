@@ -82,6 +82,7 @@ PRODUCT_SOONG_NAMESPACES += \
 PRODUCT_PACKAGES += \
     libril_samsung \
     libsecnativefeature \
+    libshim_secril \
     rild_samsung
 
 # rild_samsung is built with PRODUCT_COMPATIBLE_PROPERTY and reads
