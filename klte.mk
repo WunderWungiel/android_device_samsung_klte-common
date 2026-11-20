@@ -84,6 +84,11 @@ PRODUCT_PACKAGES += \
     libsecnativefeature \
     rild_samsung
 
+# rild_samsung is built with PRODUCT_COMPATIBLE_PROPERTY and reads
+# vendor.rild.libpath (not rild.libpath); without it rild never loads the RIL.
+PRODUCT_VENDOR_PROPERTIES += \
+    vendor.rild.libpath=/system/vendor/lib/libsec-ril.so
+
 # Ramdisk
 PRODUCT_PACKAGES += \
     fstab.qcom \
